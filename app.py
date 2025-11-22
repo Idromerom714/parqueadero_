@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import parqueadero_cpp
+import placas
+import time
 
 app = Flask(__name__)
 
@@ -35,6 +37,10 @@ def registrar_entrada():
         return jsonify({'error': resultado[7:]}), 400
     
     return jsonify({'mensaje': resultado[4:]})
+
+
+
+
 
 @app.route('/api/salida', methods=['POST'])
 def registrar_salida():
