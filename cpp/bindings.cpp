@@ -1,6 +1,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include "parqueadero.hpp"
+#include "servidor_parqueadero.hpp"
+#include <pybind11/functional.h>
 
 namespace py = pybind11;
 
@@ -43,4 +45,32 @@ PYBIND11_MODULE(parqueadero_cpp, m) {
         .def("calcular_tarifa", &Parqueadero::calcular_tarifa,
              py::arg("placa"),
              "Calcula la tarifa actual de un vehículo");
+
+    // Binding para ServidorParqueadero
+    py::class_<ServidorParqueadero>(m, "ServidorParqueadero")
+        .def(py::init<Parqueadero*, int>(),
+             py::arg("parqueadero"), py::arg("puerto") = 8080)
+        .def("iniciar", &ServidorParqueadero::iniciar,
+             "Inicia el servidor TCP")
+        .def("detener", &ServidorParqueadero::detener,
+             "Detiene el servidor TCP")
+        .def("aceptar_conexion", &ServidorParqueadero::aceptar_conexion,
+             "Acepta una conexión entrante (bloqueante)")
+        .def("esta_ejecutando", &ServidorParqueadero::esta_ejecutando,
+             "Retorna True si el servidor está ejecutando")
+        .def("establecer_callback", [](ServidorParqueadero &s, py::function cb){
+            // Guardar el callback en una lambda que adquiere el GIL
+            s.establecer_callback([cb](const std::string& tipo,
+                                      const std::string& placa,
+                                      const std::string& tipo_vehiculo,
+                                      bool exito){
+                py::gil_scoped_acquire acquire;
+                try {
+                    cb(tipo, placa, tipo_vehiculo, exito);
+                } catch (const std::exception &e) {
+                    // Evitar que excepciones en Python rompan el servidor C++
+                    py::print("Exception in callback:", e.what());
+                }
+            });
+        }, "Establece un callback Python para eventos (tipo, placa, tipo_vehiculo, exito)");
 }
